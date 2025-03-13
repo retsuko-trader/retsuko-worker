@@ -1,3 +1,14 @@
+using Binance.Net.Clients;
+
+var client = new BinanceSocketClient();
+Console.WriteLine(Environment.GetEnvironmentVariable("REDIS_PORT"));
+
+var cts = new CancellationTokenSource();
+var api = await client.UsdFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync("BTCUSDT", Binance.Net.Enums.KlineInterval.OneMinute, x => {
+  var data = x.Data.Data;
+  Console.WriteLine($"Time: {data.OpenTime}, Open: {data.OpenPrice}, Close: {data.ClosePrice}");
+}, false, cts.Token);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,36 +17,8 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+Console.ReadLine();
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+cts.Cancel();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
