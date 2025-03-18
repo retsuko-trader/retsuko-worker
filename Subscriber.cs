@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Binance.Net.Clients;
 using Binance.Net.Enums;
-using Binance.Net.Interfaces;
 using StackExchange.Redis;
 
 // BinanceStreamKlineData
@@ -77,15 +76,16 @@ public class Subscriber {
       Console.WriteLine($"[{id}] {k.Interval} {k.OpenTime} {k.CloseTime} {k.OpenPrice} {k.ClosePrice} {k.Volume}");
 
       await db.HashSetAsync("worker:store", id, JsonSerializer.Serialize(new SubscriptionState(subscription.symbol, subscription.interval, kline )));
+
+
+      await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, kline }));
+
+      var url = Environment.GetEnvironmentVariable("CALLBACK_URL");
+      var client = new HttpClient();
+      _ = Task.Run(() => client.PostAsJsonAsync(url, new {}));
     }
 
 
     subscriptions[id] = next;
-
-    await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, kline }));
-
-    var url = Environment.GetEnvironmentVariable("FETCH_URL");
-    var client = new HttpClient();
-    _ = Task.Run(() => client.PostAsJsonAsync(url, new { id, kline }));
   }
 }
