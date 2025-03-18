@@ -9,7 +9,7 @@ using Kline = Binance.Net.Objects.Models.Spot.Socket.BinanceStreamKline;
 public class Subscriber {
   record Subscription(string symbol, KlineInterval interval, Kline? lastKline, CancellationTokenSource cts);
 
-  record SubscriptionState(string symbol, KlineInterval interval, Kline? lastKline) {}
+  record SubscriptionState(string symbol, KlineInterval interval) {}
 
   private readonly IDatabase db;
   private readonly BinanceSocketClient client = new();
@@ -34,7 +34,7 @@ public class Subscriber {
 
     await SubscribeInner(id, subscription);
 
-    await db.HashSetAsync("worker:store", id, JsonSerializer.Serialize(new SubscriptionState(symbol, interval, null)));
+    await db.HashSetAsync("worker:store", id, JsonSerializer.Serialize(new SubscriptionState(symbol, interval)));
   }
 
   private async Task LoadSubscription() {
@@ -43,7 +43,7 @@ public class Subscriber {
     foreach (var entry in entries) {
       var id = entry.Name.ToString();
       var state = JsonSerializer.Deserialize<SubscriptionState>(entry.Value.ToString())!;
-      var subscription = new Subscription(state.symbol, state.interval, state.lastKline, new CancellationTokenSource());
+      var subscription = new Subscription(state.symbol, state.interval, null, new CancellationTokenSource());
 
       await SubscribeInner(id, subscription);
     }
@@ -75,16 +75,12 @@ public class Subscriber {
       var k = subscription.lastKline;
       Console.WriteLine($"[{id}] {k.Interval} {k.OpenTime} {k.CloseTime} {k.OpenPrice} {k.ClosePrice} {k.Volume}");
 
-      await db.HashSetAsync("worker:store", id, JsonSerializer.Serialize(new SubscriptionState(subscription.symbol, subscription.interval, kline )));
-
-
       await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, kline }));
 
       var url = Environment.GetEnvironmentVariable("CALLBACK_URL");
       var client = new HttpClient();
       _ = Task.Run(() => client.PostAsJsonAsync(url, new {}));
     }
-
 
     subscriptions[id] = next;
   }
