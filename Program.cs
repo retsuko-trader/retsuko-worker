@@ -1,13 +1,4 @@
-using Binance.Net.Clients;
-
-var client = new BinanceSocketClient();
-Console.WriteLine(Environment.GetEnvironmentVariable("REDIS_PORT"));
-
-var cts = new CancellationTokenSource();
-var api = await client.UsdFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync("BTCUSDT", Binance.Net.Enums.KlineInterval.OneMinute, x => {
-  var data = x.Data.Data;
-  Console.WriteLine($"Time: {data.OpenTime}, Open: {data.OpenPrice}, Close: {data.ClosePrice}");
-}, false, cts.Token);
+using Binance.Net.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,10 +6,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+var subscriber = new Subscriber();
+await subscriber.Init();
+
 var app = builder.Build();
 
-Console.ReadLine();
+app.MapPost("/subscribe", async (SubscriptionReq req) => {
+  await subscriber.Subscribe(req.id, req.symbol, (KlineInterval)req.interval);
+  return Results.Ok();
+});
 
-cts.Cancel();
+app.MapDelete("/subscribe/{id}", async (string id) => {
+  await subscriber.Unsubscribe(id);
+  return Results.Ok();
+});
 
 app.Run();
+
+record SubscriptionReq(string id, string symbol, int interval) {}
