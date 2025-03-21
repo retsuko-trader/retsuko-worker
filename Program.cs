@@ -13,11 +13,13 @@ var app = builder.Build();
 
 app.MapPost("/subscribe", async (SubscriptionReq req) => {
   await subscriber.Subscribe(req.id, req.symbol, (KlineInterval)req.interval);
+  Console.WriteLine($"Subscribed {req.id} to {req.symbol} with interval {req.interval}");
   return Results.Ok();
 });
 
 app.MapDelete("/subscribe/{id}", async (string id) => {
   await subscriber.Unsubscribe(id);
+  Console.WriteLine($"Unsubscribed {id}");
   return Results.Ok();
 });
 

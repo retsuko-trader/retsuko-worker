@@ -51,7 +51,13 @@ public class Subscriber {
 
   private async Task SubscribeInner(string id, Subscription subscription) {
     subscriptions[id] = subscription;
-    await client.UsdFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync(subscription.symbol, subscription.interval, async x => await OnData(id, (Kline)x.Data.Data), false, subscription.cts.Token);
+    await client.UsdFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync(
+      subscription.symbol,
+      subscription.interval,
+      async x => await OnData(id, (Kline)x.Data.Data),
+      false,
+      subscription.cts.Token
+    );
   }
 
   public async Task Unsubscribe(string id) {
@@ -71,11 +77,14 @@ public class Subscriber {
       return;
     }
 
+    var symbol = subscription.symbol;
+    var interval = subscription.interval;
+
     if (subscription.lastKline.OpenTime < kline.OpenTime) {
       var k = subscription.lastKline;
       Console.WriteLine($"[{id}] {k.Interval} {k.OpenTime} {k.CloseTime} {k.OpenPrice} {k.ClosePrice} {k.Volume}");
 
-      await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, kline }));
+      await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, symbol, interval, kline }));
 
       var url = Environment.GetEnvironmentVariable("CALLBACK_URL");
       var client = new HttpClient();
