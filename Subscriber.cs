@@ -70,7 +70,10 @@ public class Subscriber {
   }
 
   private async Task OnData(string id, Kline kline) {
-    var subscription = subscriptions[id];
+    if (!subscriptions.TryGetValue(id, out var subscription)) {
+      return;
+    }
+
     var next = subscriptions[id] with { lastKline = kline };
     if (subscription.lastKline == null) {
       subscriptions[id] = next;
