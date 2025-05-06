@@ -13,6 +13,7 @@ public class Subscriber {
 
   private readonly IDatabase db;
   private readonly BinanceSocketClient client = new();
+  private readonly BinanceRestClient restClient = new();
   private readonly Dictionary<string, Subscription> subscriptions = [];
 
   public Subscriber() {
@@ -45,6 +46,8 @@ public class Subscriber {
       var state = JsonSerializer.Deserialize<SubscriptionState>(entry.Value.ToString())!;
       var subscription = new Subscription(state.symbol, state.interval, null, new CancellationTokenSource());
 
+      Console.WriteLine($"Loading subscription {id} for {state.symbol} with interval {state.interval}");
+
       await SubscribeInner(id, subscription);
     }
   }
@@ -66,6 +69,33 @@ public class Subscriber {
       subscriptions.Remove(id);
 
       await db.HashDeleteAsync("worker:store", id);
+    }
+  }
+
+  public async Task Reload(string id, int count) {
+    if (!subscriptions.TryGetValue(id, out var subscription)) {
+      Console.WriteLine($"Subscription {id} not found");
+      return;
+    }
+
+    var klines = await restClient.UsdFuturesApi.ExchangeData.GetKlinesAsync(
+      subscription.symbol,
+      subscription.interval,
+      limit: count
+    );
+
+    if (!klines.Success) {
+      Console.WriteLine($"Failed to reload {id}: {klines.Error}");
+    }
+
+    foreach (var kline in klines.Data) {
+      await OnData(id, new Kline {
+        OpenTime = kline.OpenTime,
+        CloseTime = kline.CloseTime,
+        OpenPrice = kline.OpenPrice,
+        ClosePrice = kline.ClosePrice,
+        Volume = kline.Volume
+      });
     }
   }
 
