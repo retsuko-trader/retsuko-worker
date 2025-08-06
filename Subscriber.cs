@@ -117,7 +117,7 @@ public class Subscriber {
       var k = subscription.lastKline;
       Console.WriteLine($"[{id}] {k.Interval} {k.OpenTime} {k.CloseTime} {k.OpenPrice} {k.ClosePrice} {k.Volume}");
 
-      await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, symbol, interval, kline }));
+      await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, symbol, interval, kline = k }));
 
       var url = Environment.GetEnvironmentVariable("CALLBACK_URL");
       var client = new HttpClient();
