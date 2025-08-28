@@ -1,34 +1,63 @@
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Binance.Net.Enums;
 using Microsoft.AspNetCore.Mvc;
 
+const string SERVICE_NAME = "retsuko-worker";
+const string OTE_URL = "http://localhost:4317";
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Logging.AddOpenTelemetry(options => {
+  options
+    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(SERVICE_NAME))
+    .AddOtlpExporter(otlp => {
+      otlp.Endpoint = new Uri(OTE_URL);
+      otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+    });
+});
+builder.Services.AddOpenTelemetry()
+  .ConfigureResource(resource => resource.AddService(SERVICE_NAME))
+  .WithTracing(tracing => tracing
+    .AddSource(SERVICE_NAME)
+    .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(SERVICE_NAME))
+    .AddAspNetCoreInstrumentation()
+    .AddOtlpExporter(otlp => {
+      otlp.Endpoint = new Uri(OTE_URL);
+      otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+    }))
+  .WithMetrics(metrics => metrics
+    .AddAspNetCoreInstrumentation()
+    .AddOtlpExporter(otlp => {
+      otlp.Endpoint = new Uri(OTE_URL);
+      otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+    }));
+
+var app = builder.Build();
+MyLogger.Logger = app.Logger;
 
 var subscriber = new Subscriber();
 await subscriber.Init();
-
-var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok("ok"));
 
 app.MapPost("/subscribe", async (SubscriptionReq req) => {
   await subscriber.Subscribe(req.id, req.symbol, (KlineInterval)req.interval);
-  Console.WriteLine($"Subscribed {req.id} to {req.symbol} with interval {req.interval}");
+  MyLogger.Logger.LogInformation("Subscribed {req.id} to {req.symbol} with interval {req.interval}", req.id, req.symbol, req.interval);
   return Results.Ok();
 });
 
 app.MapPost("/subscribe/{id}/reload", async (string id, [FromBody]SubscriptionReloadReq req) => {
   await subscriber.Reload(id, req.count);
-  Console.WriteLine($"Manually reloaded {id} for {req.count} klines");
+  MyLogger.Logger.LogInformation("Manually reloaded {id} for {count} klines", id, req.count);
   return Results.Ok();
 });
 
 app.MapDelete("/subscribe/{id}", async (string id) => {
   await subscriber.Unsubscribe(id);
-  Console.WriteLine($"Unsubscribed {id}");
+  MyLogger.Logger.LogInformation("Unsubscribed {id}", id);
   return Results.Ok();
 });
 

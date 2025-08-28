@@ -46,7 +46,7 @@ public class Subscriber {
       var state = JsonSerializer.Deserialize<SubscriptionState>(entry.Value.ToString())!;
       var subscription = new Subscription(state.symbol, state.interval, null, new CancellationTokenSource());
 
-      Console.WriteLine($"Loading subscription {id} for {state.symbol} with interval {state.interval}");
+      MyLogger.Logger.LogInformation("Loading subscription {id} for {symbol} with interval {interval}", id, state.symbol, state.interval);
 
       await SubscribeInner(id, subscription);
     }
@@ -74,7 +74,7 @@ public class Subscriber {
 
   public async Task Reload(string id, int count) {
     if (!subscriptions.TryGetValue(id, out var subscription)) {
-      Console.WriteLine($"Subscription {id} not found");
+      MyLogger.Logger.LogWarning("Subscription {id} not found", id);
       return;
     }
 
@@ -85,7 +85,7 @@ public class Subscriber {
     );
 
     if (!klines.Success) {
-      Console.WriteLine($"Failed to reload {id}: {klines.Error}");
+      MyLogger.Logger.LogError("Failed to reload {id}: {error}", id, klines.Error);
     }
 
     foreach (var kline in klines.Data) {
@@ -115,7 +115,7 @@ public class Subscriber {
 
     if (subscription.lastKline.OpenTime < kline.OpenTime) {
       var k = subscription.lastKline;
-      Console.WriteLine($"[{id}] {k.Interval} {k.OpenTime} {k.CloseTime} {k.OpenPrice} {k.ClosePrice} {k.Volume}");
+      MyLogger.Logger.LogInformation("Processing kline for {id}: {interval} {openTime} {closeTime} {openPrice} {closePrice} {volume}", id, k.Interval, k.OpenTime, k.CloseTime, k.OpenPrice, k.ClosePrice, k.Volume);
 
       await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, symbol, interval, kline = k }));
 
