@@ -114,6 +114,7 @@ public class Subscriber {
     var interval = subscription.interval;
 
     if (subscription.lastKline.OpenTime < kline.OpenTime) {
+      using var span = MyTracer.Tracer.StartRootSpan("OnKlineData");
       var k = subscription.lastKline;
       MyLogger.Logger.LogInformation("Processing kline for {id}: {interval} {openTime} {closeTime} {openPrice} {closePrice} {volume}", id, k.Interval, k.OpenTime, k.CloseTime, k.OpenPrice, k.ClosePrice, k.Volume);
 
