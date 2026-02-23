@@ -16,6 +16,7 @@ builder.Logging.AddOpenTelemetry(options => {
     .AddOtlpExporter(otlp => {
       otlp.Endpoint = new Uri(OTE_URL);
       otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+      otlp.ExportProcessorType = OpenTelemetry.ExportProcessorType.Simple;
     });
 });
 builder.Services.AddOpenTelemetry()
@@ -24,7 +25,13 @@ builder.Services.AddOpenTelemetry()
     .AddSource(SERVICE_NAME)
     .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(SERVICE_NAME))
     .AddAspNetCoreInstrumentation()
-    .AddHttpClientInstrumentation()
+    .AddHttpClientInstrumentation(http => {
+      http.EnrichWithHttpRequestMessage = (activity, message) => {
+        if (message.RequestUri?.AbsoluteUri == Const.CALLBACK_URL) {
+          activity.DisplayName = $"{message.Method} {{retsuko-backend}}{message.RequestUri.AbsolutePath}";
+        }
+      };
+    })
     .AddRedisInstrumentation()
     .AddOtlpExporter(otlp => {
       otlp.Endpoint = new Uri(OTE_URL);

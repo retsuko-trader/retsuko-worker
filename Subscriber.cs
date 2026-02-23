@@ -120,9 +120,8 @@ public class Subscriber {
 
       await db.ListLeftPushAsync("worker:queue", JsonSerializer.Serialize(new { id, symbol, interval, kline = k }));
 
-      var url = Environment.GetEnvironmentVariable("CALLBACK_URL");
       var client = new HttpClient();
-      _ = Task.Run(() => client.PostAsJsonAsync(url, new {}));
+      _ = Task.Run(() => client.PostAsJsonAsync(Const.CALLBACK_URL, new {}));
     }
 
     subscriptions[id] = next;
