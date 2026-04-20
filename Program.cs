@@ -24,7 +24,11 @@ builder.Services.AddOpenTelemetry()
   .WithTracing(tracing => tracing
     .AddSource(SERVICE_NAME)
     .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(SERVICE_NAME))
-    .AddAspNetCoreInstrumentation()
+    .AddAspNetCoreInstrumentation(asp => {
+      asp.Filter = ctx => {
+        return ctx.Request.Path != "/health";
+      };
+    })
     .AddHttpClientInstrumentation(http => {
       http.EnrichWithHttpRequestMessage = (activity, message) => {
         if (message.RequestUri?.AbsoluteUri == Const.CALLBACK_URL) {
