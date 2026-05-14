@@ -59,6 +59,7 @@ public class Subscriber {
       subscription.interval,
       async x => await OnData(id, (Kline)x.Data.Data),
       false,
+      priceIndex: false,
       subscription.cts.Token
     );
   }
