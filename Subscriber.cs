@@ -53,6 +53,11 @@ public class Subscriber {
   }
 
   private async Task SubscribeInner(string id, Subscription subscription) {
+    if (subscriptions.ContainsKey(id)) {
+      MyLogger.Logger.LogWarning("Subscription {id} already exists, skipping", id);
+      return;
+    }
+
     subscriptions[id] = subscription;
     await client.UsdFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync(
       subscription.symbol,
